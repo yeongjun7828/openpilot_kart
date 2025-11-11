@@ -68,13 +68,18 @@ class LateralPlanner:
       car_speed = np.linalg.norm(self.velocity_xyz, axis=1) - get_speed_error(md, v_ego_car)
       self.v_plan = np.clip(car_speed, MIN_SPEED, np.inf)
       self.v_ego = self.v_plan[0]
-
+    # print("md position.x len :", len(md.position.x))
+    # print(" path xyz:", self.path_xyz)
     # Lane change logic
     desire_state = md.meta.desireState
-    if len(desire_state):
-      self.l_lane_change_prob = desire_state[log.LateralPlan.Desire.laneChangeLeft]
-      self.r_lane_change_prob = desire_state[log.LateralPlan.Desire.laneChangeRight]
-    lane_change_prob = self.l_lane_change_prob + self.r_lane_change_prob
+    # print("len(desire_state):", len(desire_state))
+    # print("Desire enum:", log.LateralPlan.Desire.laneChangeRight)
+    # if len(desire_state):
+    #   self.l_lane_change_prob = desire_state[log.LateralPlan.Desire.laneChangeLeft]
+    #   self.r_lane_change_prob = desire_state[log.LateralPlan.Desire.laneChangeRight]
+    lane_change_prob = 0.0 #self.l_lane_change_prob + self.r_lane_change_prob
+    # lane_change_prob = self.l_lane_change_prob + self.r_lane_change_prob
+
     self.DH.update(sm['carState'], sm['carControl'].latActive, lane_change_prob)
 
     self.lat_mpc.set_weights(PATH_COST, LATERAL_MOTION_COST,

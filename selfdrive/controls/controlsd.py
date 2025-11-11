@@ -2,6 +2,8 @@
 import os
 import math
 from typing import SupportsFloat
+import time
+
 
 from cereal import car, log
 from common.numpy_fast import clip
@@ -14,7 +16,7 @@ from common.conversions import Conversions as CV
 from panda import ALTERNATIVE_EXPERIENCE
 from system.swaglog import cloudlog
 from system.version import is_release_branch, get_short_branch
-from selfdrive.boardd.boardd import can_list_to_can_capnp
+# from selfdrive.boardd.boardd import can_list_to_can_capnp
 from selfdrive.car.car_helpers import get_car, get_startup_event, get_one_can
 from selfdrive.controls.lib.lateral_planner import CAMERA_OFFSET
 from selfdrive.controls.lib.drive_helpers import VCruiseHelper, get_lag_adjusted_curvature
@@ -85,19 +87,126 @@ class Controls:
         ignore += ['driverCameraState', 'managerState']
       self.sm = messaging.SubMaster(['deviceState', 'pandaStates', 'peripheralState', 'modelV2', 'liveCalibration',
                                      'driverMonitoringState', 'longitudinalPlan', 'lateralPlan', 'liveLocationKalman',
-                                     'managerState', 'liveParameters', 'radarState', 'liveTorqueParameters', 'testJoystick'] + self.camera_packets,
+                                     'managerState', 'liveParameters', 'radarState', 'liveTorqueParameters', 'testJoystick', 'vehicleState'] + self.camera_packets,
                                     ignore_alive=ignore, ignore_avg_freq=['radarState', 'testJoystick'])
 
-    if CI is None:
-      # wait for one pandaState and one CAN packet
-      print("Waiting for CAN messages...")
-      get_one_can(self.can_sock)
+    # if CI is None:
+    #   # wait for one pandaState and one CAN packet
+    #   print("Waiting for CAN messages...")
+    #   get_one_can(self.can_sock)
 
-      num_pandas = len(messaging.recv_one_retry(self.sm.sock['pandaStates']).pandaStates)
-      experimental_long_allowed = self.params.get_bool("ExperimentalLongitudinalEnabled") and not is_release_branch()
-      self.CI, self.CP = get_car(self.can_sock, self.pm.sock['sendcan'], experimental_long_allowed, num_pandas)
-    else:
-      self.CI, self.CP = CI, CI.CP
+    #   num_pandas = len(messaging.recv_one_retry(self.sm.sock['pandaStates']).pandaStates)
+    #   experimental_long_allowed = self.params.get_bool("ExperimentalLongitudinalEnabled") and not is_release_branch()
+    #   self.CI, self.CP = get_car(self.can_sock, self.pm.sock['sendcan'], experimental_long_allowed, num_pandas)
+    # else:
+    #   self.CI, self.CP = CI, CI.CP
+    CP = car.CarParams.new_message()
+    CP.carName = "mock"
+    CP.notCar = False
+    CP.dashcamOnly = False
+    CP.openpilotLongitudinalControl = True
+    CP.minSteerSpeed = 0.0
+    CP.steerControlType = car.CarParams.SteerControlType.angle
+
+    # VehicleModel 파라미터 (0이면 크래시)
+    CP.mass = 1700.0
+    CP.wheelbase = 2.80
+    CP.centerToFront = 1.20
+    CP.tireStiffnessFront = 120000.0
+    CP.tireStiffnessRear  = 130000.0
+    CP.steerRatio = 15.0
+
+    CP.longitudinalActuatorDelayLowerBound = 0.1
+    CP.longitudinalActuatorDelayUpperBound = 0.2
+    CP.longitudinalTuning.kpBP = [0.0, 5.0, 20.0]
+    CP.longitudinalTuning.kpV = [1.4, 1.1, 0.7]
+    CP.longitudinalTuning.kiBP = [0.0, 5.0, 20.0]
+    CP.longitudinalTuning.kiV = [0.18, 0.12, 0.08]
+    CP.longitudinalTuning.deadzoneBP = [0.0, 20.0]
+    CP.longitudinalTuning.deadzoneV = [0.0, 0.05]
+
+    CP.pcmCruise = True # 
+    self.CP = CP
+    
+    # CS = car.CarState.new_message()
+    # v = self.sm['vehicleState'].vEgo
+    # steer_deg = self.sm['vehicleState'].steeringAngleDeg
+
+
+    class FakeCI:
+      """
+      controlsd에서 기대하는 CarInterface 최소 구현.
+      - update(): 합성 CarState 생성/반환
+      - get_pid_accel_limits(): 기본 가/감속 한계 반환
+      - apply(): 액추에이터 반영 없이 그대로 반환
+      - CC 속성: 존재 여부만 확인하므로 dummy로 채움
+      환경변수로 합성 속도/조향각을 조절할 수 있음:
+        FAKE_VEGO_MS (기본 10.0), FAKE_STEER_DEG (기본 0.0)
+      """
+      def __init__(self, CP, sm):
+        self.CP = CP
+        self.sm = sm
+        self.CC = object()  # controller_available 체크용
+        self._t0 = sec_since_boot()
+
+      def init(self, CP, can_sock, sendcan_sock):
+        # 실제 차 제어 초기화 대신 no-op
+        return
+
+      def update(self, CC, can_strs):
+        # 합성 CarState 생성
+        CS = car.CarState.new_message()
+        if not self.sm.valid['vehicleState']:
+          return self.CS_prev
+        
+        vs = self.sm['vehicleState']
+        CS.vEgo = vs.vEgo
+        CS.aEgo = vs.aEgo
+        CS.steeringAngleDeg = vs.steeringAngleDeg
+        CS.steeringRateDeg = vs.steeringRateDeg
+        CS.standstill = vs.standstill
+
+        # print("FakeCI update(): vEgo =", v, "steeringAngleDeg =", steer_deg)
+        CS.vEgoRaw = vs.vEgo
+        CS.standstill = vs.vEgo < 0.1
+        CS.steeringPressed = False
+
+        CS.leftBlinker = False
+        CS.rightBlinker = False
+        CS.gasPressed = False
+        CS.brakePressed = False
+        CS.regenBraking = False
+        CS.steerFaultTemporary = False
+        CS.steerFaultPermanent = False
+
+        CS.cruiseState.enabled = True
+        CS.cruiseState.standstill = CS.standstill
+        CS.cruiseState.speed = vs.cruiseState.speed
+        CS.cruiseState.available = vs.cruiseState.available
+
+        # wheelSpeeds는 단순히 v로 채움
+        CS.wheelSpeeds.fl = vs.vEgo
+        CS.wheelSpeeds.fr = vs.vEgo
+        CS.wheelSpeeds.rl = vs.vEgo
+        CS.wheelSpeeds.rr = vs.vEgo
+
+        CS.canValid = True
+        CS.canTimeout = False
+        CS.events = []
+        CS.buttonEvents = []
+
+        return CS
+
+      def get_pid_accel_limits(self, CP, v_ego, v_cruise_ms):
+        # 기본 가/감속 한계 (필요시 조정)
+        return (-1.0, 1.0)
+
+      def apply(self, CC, now_nanos):
+        # 실제 CAN 송신 없이, 액추에이터 출력만 에코S
+        return CC.actuators, []
+
+    # 외부에서 CI를 넘기지 않았다면 FakeCI 사용
+    self.CI = CI if CI is not None else FakeCI(self.CP,self.sm)
 
     self.joystick_mode = self.params.get_bool("JoystickDebugMode") or self.CP.notCar
 
@@ -116,7 +225,7 @@ class Controls:
     # detect sound card presence and ensure successful init
     sounds_available = HARDWARE.get_sound_card_online()
 
-    car_recognized = self.CP.carName != 'mock'
+    car_recognized = True #self.CP.carName != 'mock'
 
     controller_available = self.CI.CC is not None and not passive and not self.CP.dashcamOnly
     self.read_only = not car_recognized or not controller_available or self.CP.dashcamOnly
@@ -256,13 +365,13 @@ class Controls:
       self.events.add_from_msg(CS.events)
 
     # Create events for temperature, disk space, and memory
-    if self.sm['deviceState'].thermalStatus >= ThermalStatus.red:
-      self.events.add(EventName.overheat)
-    if self.sm['deviceState'].freeSpacePercent < 7 and not SIMULATION:
-      # under 7% of space free no enable allowed
-      self.events.add(EventName.outOfSpace)
-    if self.sm['deviceState'].memoryUsagePercent > 90 and not SIMULATION:
-      self.events.add(EventName.lowMemory)
+    # if self.sm['deviceState'].thermalStatus >= ThermalStatus.red:
+    #   self.events.add(EventName.overheat)
+    # if self.sm['deviceState'].freeSpacePercent < 7 and not SIMULATION:
+    #   # under 7% of space free no enable allowed
+    #   self.events.add(EventName.outOfSpace)
+    # if self.sm['deviceState'].memoryUsagePercent > 90 and not SIMULATION:
+    #   self.events.add(EventName.lowMemory)
 
     # TODO: enable this once loggerd CPU usage is more reasonable
     #cpus = list(self.sm['deviceState'].cpuUsagePercent)
@@ -427,7 +536,7 @@ class Controls:
 
     # Update carState from CAN
     can_strs = messaging.drain_sock_raw(self.can_sock, wait_for_one=True)
-    CS = self.CI.update(self.CC, can_strs)
+    CS = self.CI.update(self.CC, can_strs) 
     if len(can_strs) and REPLAY:
       self.can_log_mono_time = messaging.log_from_bytes(can_strs[0]).logMonoTime
 
@@ -477,7 +586,6 @@ class Controls:
     """Compute conditional state transitions and execute actions on state transitions"""
 
     self.v_cruise_helper.update_v_cruise(CS, self.enabled, self.is_metric)
-
     # decrement the soft disable timer at every step, as it's reset on
     # entrance in SOFT_DISABLING state
     self.soft_disable_timer = max(0, self.soft_disable_timer - 1)
@@ -507,7 +615,7 @@ class Controls:
             self.state = State.overriding
             self.current_alert_types += [ET.OVERRIDE_LATERAL, ET.OVERRIDE_LONGITUDINAL]
 
-        # SOFT DISABLING
+        # SOFT DISABLINGcontrolsdLagging
         elif self.state == State.softDisabling:
           if not self.events.any(ET.SOFT_DISABLE):
             # no more soft disabling condition, so go back to ENABLED
@@ -579,13 +687,14 @@ class Controls:
 
     CC = car.CarControl.new_message()
     CC.enabled = self.enabled
-
+    self.active = True
+    self.enabled = True
     # Check which actuators can be enabled
     standstill = CS.vEgo <= max(self.CP.minSteerSpeed, MIN_LATERAL_CONTROL_SPEED) or CS.standstill
     CC.latActive = self.active and not CS.steerFaultTemporary and not CS.steerFaultPermanent and \
                    (not standstill or self.joystick_mode)
     CC.longActive = self.enabled and not self.events.any(ET.OVERRIDE_LONGITUDINAL) and self.CP.openpilotLongitudinalControl
-
+    # print(f"longActive: {CC.longActive}, latActive: {CC.latActive}")
     actuators = CC.actuators
     actuators.longControlState = self.LoC.long_control_state
 
@@ -603,7 +712,7 @@ class Controls:
       self.LaC.reset()
     if not CC.longActive:
       self.LoC.reset(v_pid=CS.vEgo)
-
+    # print(f"joystick_mode: {self.joystick_mode}")
     if not self.joystick_mode:
       # accel PID loop
       pid_accel_limits = self.CI.get_pid_accel_limits(self.CP, CS.vEgo, self.v_cruise_helper.v_cruise_kph * CV.KPH_TO_MS)
@@ -744,7 +853,7 @@ class Controls:
       # send car controls over can
       now_nanos = self.can_log_mono_time if REPLAY else int(sec_since_boot() * 1e9)
       self.last_actuators, can_sends = self.CI.apply(CC, now_nanos)
-      self.pm.send('sendcan', can_list_to_can_capnp(can_sends, msgtype='sendcan', valid=CS.canValid))
+      # self.pm.send('sendcan', can_list_to_can_capnp(can_sends, msgtype='sendcan', valid=CS.canValid))
       CC.actuatorsOutput = self.last_actuators
       if self.CP.steerControlType == car.CarParams.SteerControlType.angle:
         self.steer_limited = abs(CC.actuators.steeringAngleDeg - CC.actuatorsOutput.steeringAngleDeg) > \
@@ -870,7 +979,23 @@ class Controls:
     self.prof.checkpoint("Sent")
 
     self.CS_prev = CS
+#  # === 🔥 여기부터 루프 속도 출력 ===
+#     now = time.monotonic()
+#     if not hasattr(self, "_last_print_time"):
+#         self._last_print_time = now
+#         self._last_frame = self.sm.frame
 
+#     dt = now - self._last_print_time
+#     if dt >= 1.0:  # 1초마다 갱신
+#         frame_diff = self.sm.frame - self._last_frame
+#         hz = frame_diff / dt
+#         print(f"[CTRL] Frame {self.sm.frame} | {1/hz:.4f}s per frame (~{hz:.1f} Hz) "
+#               f"| Lag: {self.rk.lagging} | Remaining: {self.rk.remaining*1000:.2f} ms")
+#         self._last_print_time = now
+#         self._last_frame = self.sm.frame
+#     # ==================================
+
+    
   def controlsd_thread(self):
     while True:
       self.step()
@@ -879,6 +1004,7 @@ class Controls:
 
 
 def main(sm=None, pm=None, logcan=None):
+
   controls = Controls(sm, pm, logcan)
   controls.controlsd_thread()
 

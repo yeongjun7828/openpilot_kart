@@ -68,6 +68,7 @@ class LongControl:
   def update(self, active, CS, long_plan, accel_limits, t_since_plan):
     """Update longitudinal control. This updates the state machine and runs a PID loop"""
     # Interp control trajectory
+    # print("active:", active)
     speeds = long_plan.speeds
     if len(speeds) == CONTROL_N:
       v_target_now = interp(t_since_plan, T_IDXS[:CONTROL_N], speeds)
@@ -96,7 +97,8 @@ class LongControl:
     self.long_control_state = long_control_state_trans(self.CP, active, self.long_control_state, CS.vEgo,
                                                        v_target, v_target_1sec, CS.brakePressed,
                                                        CS.cruiseState.standstill)
-
+    
+    # print("long_control_state:", self.long_control_state)
     if self.long_control_state == LongCtrlState.off:
       self.reset(CS.vEgo)
       output_accel = 0.
@@ -122,11 +124,12 @@ class LongControl:
       freeze_integrator = prevent_overshoot
 
       error = self.v_pid - CS.vEgo
+      # print("v_pid:", self.v_pid, "v_ego:", CS.vEgo, "error:", error)
       error_deadzone = apply_deadzone(error, deadzone)
       output_accel = self.pid.update(error_deadzone, speed=CS.vEgo,
                                      feedforward=a_target,
                                      freeze_integrator=freeze_integrator)
-
+      # print("output_accel (before clip):", output_accel)
     self.last_output_accel = clip(output_accel, accel_limits[0], accel_limits[1])
 
     return self.last_output_accel

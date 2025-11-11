@@ -4,7 +4,7 @@ from functools import partial
 
 import cereal.messaging as messaging
 from system.swaglog import cloudlog
-from selfdrive.boardd.boardd import can_list_to_can_capnp
+# from selfdrive.boardd.boardd import can_list_to_can_capnp
 from panda.python.uds import CanClient, IsoTpMessage, FUNCTIONAL_ADDRS, get_rx_addr_for_tx_addr
 
 
@@ -38,7 +38,7 @@ class IsoTpParallelQuery:
   def _can_tx(self, tx_addr, dat, bus):
     """Helper function to send single message"""
     msg = [tx_addr, 0, dat, bus]
-    self.sendcan.send(can_list_to_can_capnp([msg], msgtype='sendcan'))
+    # self.sendcan.send(can_list_to_can_capnp([msg], msgtype='sendcan'))
 
   def _can_rx(self, addr, sub_addr=None):
     """Helper function to retrieve message with specified address and subadress from buffer"""

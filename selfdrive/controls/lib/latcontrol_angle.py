@@ -13,7 +13,7 @@ class LatControlAngle(LatControl):
 
   def update(self, active, CS, VM, params, last_actuators, steer_limited, desired_curvature, desired_curvature_rate, llk):
     angle_log = log.ControlsState.LateralAngleState.new_message()
-
+    # print("lat control angle update: ", active)
     if not active:
       angle_log.active = False
       angle_steers_des = float(CS.steeringAngleDeg)
@@ -26,4 +26,5 @@ class LatControlAngle(LatControl):
     angle_log.saturated = self._check_saturation(angle_control_saturated, CS, False)
     angle_log.steeringAngleDeg = float(CS.steeringAngleDeg)
     angle_log.steeringAngleDesiredDeg = angle_steers_des
+    # print("angle_steers_des:", angle_steers_des)
     return 0, float(angle_steers_des), angle_log

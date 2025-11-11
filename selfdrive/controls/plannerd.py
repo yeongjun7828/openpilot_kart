@@ -8,6 +8,8 @@ from selfdrive.modeld.constants import T_IDXS
 from selfdrive.controls.lib.longitudinal_planner import LongitudinalPlanner
 from selfdrive.controls.lib.lateral_planner import LateralPlanner
 import cereal.messaging as messaging
+messaging.context = None  # 바로 다음 줄에
+
 
 def cumtrapz(x, t):
   return np.concatenate([[0], np.cumsum(((x[0:-1] + x[1:])/2) * np.diff(t))])
@@ -31,8 +33,22 @@ def plannerd_thread(sm=None, pm=None):
 
   cloudlog.info("plannerd is waiting for CarParams")
   params = Params()
-  CP = car.CarParams.from_bytes(params.get("CarParams", block=True))
-  cloudlog.info("plannerd got CarParams: %s", CP.carName)
+  # CP = car.CarParams.from_bytes(params.get("CarParams", block=True))
+  # cloudlog.info("plannerd got CarParams: %s", CP.carName)
+  CP = car.CarParams.new_message()
+  CP.carName = "mock"
+  CP.notCar = False
+  CP.dashcamOnly = False
+  CP.openpilotLongitudinalControl = True
+  CP.minSteerSpeed = 0.0
+  CP.steerControlType = car.CarParams.SteerControlType.angle
+
+  CP.mass = 1700.0
+  CP.wheelbase = 2.80
+  CP.centerToFront = 1.20
+  CP.tireStiffnessFront = 120000.0
+  CP.tireStiffnessRear  = 130000.0
+  CP.steerRatio = 15.0
 
   longitudinal_planner = LongitudinalPlanner(CP)
   lateral_planner = LateralPlanner(CP)

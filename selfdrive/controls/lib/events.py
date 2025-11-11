@@ -206,6 +206,7 @@ def get_display_speed(speed_ms: float, metric: bool) -> str:
 # ********** alert callback functions **********
 
 AlertCallbackType = Callable[[car.CarParams, car.CarState, messaging.SubMaster, bool, int], Alert]
+# AlertCallbackType = Callable[..., Alert]
 
 
 def soft_disable_alert(alert_text_2: str) -> AlertCallbackType:

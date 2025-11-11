@@ -53,7 +53,9 @@ class VCruiseHelper:
 
   def update_v_cruise(self, CS, enabled, is_metric):
     self.v_cruise_kph_last = self.v_cruise_kph
-
+    # print("CS.cruiseState.speed:", CS.cruiseState.speed)
+    # print("CV.MS_TO_KPH:", CV.MS_TO_KPH)
+    # print("Cs.cruiseState.available:", CS.cruiseState.available)
     if CS.cruiseState.available:
       if not self.CP.pcmCruise:
         # if stock cruise is completely disabled, then we can use our own set speed logic

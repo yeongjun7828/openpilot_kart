@@ -6,7 +6,7 @@ from typing import Optional, Set, Tuple
 import cereal.messaging as messaging
 from panda.python.uds import SERVICE_TYPE
 from selfdrive.car import make_can_msg
-from selfdrive.boardd.boardd import can_list_to_can_capnp
+# from selfdrive.boardd.boardd import can_list_to_can_capnp
 from system.swaglog import cloudlog
 
 EcuAddrBusType = Tuple[int, Optional[int], int]
@@ -49,7 +49,7 @@ def get_ecu_addrs(logcan: messaging.SubSocket, sendcan: messaging.PubSocket, que
     msgs = [make_tester_present_msg(addr, bus, subaddr) for addr, subaddr, bus in queries]
 
     messaging.drain_sock_raw(logcan)
-    sendcan.send(can_list_to_can_capnp(msgs, msgtype='sendcan'))
+    # sendcan.send(can_list_to_can_capnp(msgs, msgtype='sendcan'))
     start_time = time.monotonic()
     while time.monotonic() - start_time < timeout:
       can_packets = messaging.drain_sock(logcan, wait_for_one=True)
