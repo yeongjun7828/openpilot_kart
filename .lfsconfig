@@ -1,4 +1,3 @@
 [lfs]
 	url = https://git.aceworks.ai/aceworks/third-party/openpilot/openpilot.git/info/lfs
-	pushurl = ssh://git@gitlab.com/commaai/openpilot-lfs.git
 	locksverify = false
