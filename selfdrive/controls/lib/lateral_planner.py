@@ -13,15 +13,15 @@ TRAJECTORY_SIZE = 33
 CAMERA_OFFSET = 0.04
 
 
-PATH_COST = 1.0
-LATERAL_MOTION_COST = 0.11
+PATH_COST = 1.0  # 경로 추종을 매우 강하게
+LATERAL_MOTION_COST = 0.1  # 횡방향 움직임 페널티 최소화
 LATERAL_ACCEL_COST = 0.0
-LATERAL_JERK_COST = 0.04
+LATERAL_JERK_COST = 0.01  # jerk 페널티도 낮춤
 # Extreme steering rate is unpleasant, even
 # when it does not cause bad jerk.
 # TODO this cost should be lowered when low
 # speed lateral control is stable on all cars
-STEERING_RATE_COST = 700.0
+STEERING_RATE_COST = 100.0  # 스티어링 속도 제약 완화
 
 
 class LateralPlanner:

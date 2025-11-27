@@ -43,12 +43,12 @@ def plannerd_thread(sm=None, pm=None):
   CP.minSteerSpeed = 0.0
   CP.steerControlType = car.CarParams.SteerControlType.angle
 
-  CP.mass = 1700.0
-  CP.wheelbase = 2.80
-  CP.centerToFront = 1.20
+  CP.mass = 200.0
+  CP.wheelbase = 1.0
+  CP.centerToFront = 0.5
   CP.tireStiffnessFront = 120000.0
   CP.tireStiffnessRear  = 130000.0
-  CP.steerRatio = 15.0
+  CP.steerRatio = 1.6
 
   longitudinal_planner = LongitudinalPlanner(CP)
   lateral_planner = LateralPlanner(CP)
