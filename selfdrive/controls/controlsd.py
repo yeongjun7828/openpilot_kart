@@ -106,7 +106,14 @@ class Controls:
     CP.dashcamOnly = False
     CP.openpilotLongitudinalControl = True
     CP.minSteerSpeed = 0.0
-    CP.steerControlType = car.CarParams.SteerControlType.angle
+    # CP.steerControlType = car.CarParams.SteerControlType.angle
+    CP.steerControlType = car.CarParams.SteerControlType.torque
+    CP.lateralTuning.init('pid')
+    CP.lateralTuning.pid.kpBP = [0.]
+    CP.lateralTuning.pid.kpV = [0.05]
+    CP.lateralTuning.pid.kiBP = [0.]
+    CP.lateralTuning.pid.kiV = [0.01]
+    CP.lateralTuning.pid.kf = 0.00006
 
     # VehicleModel 파라미터 (0이면 크래시)
     CP.mass = 1700.0
@@ -204,6 +211,16 @@ class Controls:
       def apply(self, CC, now_nanos):
         # 실제 CAN 송신 없이, 액추에이터 출력만 에코S
         return CC.actuators, []
+      
+      @staticmethod
+      def get_steer_feedforward_default(desired_angle, v_ego):
+        # Proportional to realigning tire momentum: lateral acceleration.
+        # TODO: 필요하면 더 현실적인 모델로 변경
+        return desired_angle * (v_ego ** 2)
+
+      # === Steer Feedforward 함수 제공 ===
+      def get_steer_feedforward_function(self):
+        return self.get_steer_feedforward_default
 
     # 외부에서 CI를 넘기지 않았다면 FakeCI 사용
     self.CI = CI if CI is not None else FakeCI(self.CP,self.sm)
