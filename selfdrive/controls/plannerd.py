@@ -19,7 +19,7 @@ def publish_ui_plan(sm, pm, lateral_planner, longitudinal_planner):
   model_odo = cumtrapz(lateral_planner.v_plan, T_IDXS)
 
   ui_send = messaging.new_message('uiPlan')
-  ui_send.valid = sm.all_checks(service_list=['carState', 'controlsState', 'modelV2'])
+  ui_send.valid = sm.all_checks(service_list=['vehicleState', 'controlsState', 'modelV2'])
   uiPlan = ui_send.uiPlan
   uiPlan.frameId = sm['modelV2'].frameId
   uiPlan.position.x = np.interp(plan_odo, model_odo, lateral_planner.lat_mpc.x_sol[:,0]).tolist()
@@ -54,7 +54,7 @@ def plannerd_thread(sm=None, pm=None):
   lateral_planner = LateralPlanner(CP)
 
   if sm is None:
-    sm = messaging.SubMaster(['carControl', 'carState', 'controlsState', 'radarState', 'modelV2'],
+    sm = messaging.SubMaster(['carControl', 'vehicleState', 'controlsState', 'radarState', 'modelV2'],
                              poll=['radarState', 'modelV2'], ignore_avg_freq=['radarState'])
 
   if pm is None:

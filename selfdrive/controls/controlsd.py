@@ -123,6 +123,10 @@ class Controls:
     CP.tireStiffnessRear  = 130000.0
     CP.steerRatio = 15.0
 
+    CP.vEgoStopping = 0.3
+    CP.stopAccel = -1.0
+    CP.stoppingDecelRate = 0.8
+    
     CP.longitudinalActuatorDelayLowerBound = 0.1
     CP.longitudinalActuatorDelayUpperBound = 0.2
     CP.longitudinalTuning.kpBP = [0.0, 5.0, 20.0]
@@ -164,6 +168,7 @@ class Controls:
         # 합성 CarState 생성
         CS = car.CarState.new_message()
         if not self.sm.valid['vehicleState']:
+          print("FakeCI: vehicleState 메시지 유효하지 않음, 이전 상태 반환")
           return self.CS_prev
         
         vs = self.sm['vehicleState']
@@ -187,7 +192,7 @@ class Controls:
         CS.steerFaultPermanent = False
 
         CS.cruiseState.enabled = True
-        CS.cruiseState.standstill = CS.standstill
+        CS.cruiseState.standstill = False
         CS.cruiseState.speed = vs.cruiseState.speed
         CS.cruiseState.available = vs.cruiseState.available
 
@@ -394,7 +399,7 @@ class Controls:
     #cpus = list(self.sm['deviceState'].cpuUsagePercent)
     #if max(cpus, default=0) > 95 and not SIMULATION:
     #  self.events.add(EventName.highCpuUsage)
-
+    
     # Alert if fan isn't spinning for 5 seconds
     if self.sm['peripheralState'].pandaType != log.PandaState.PandaType.unknown:
       if self.sm['peripheralState'].fanSpeedRpm < 500 and self.sm['deviceState'].fanSpeedPercentDesired > 50:

@@ -156,7 +156,6 @@ def gen_long_ocp():
   ocp.cost.yref_e = np.zeros((COST_E_DIM, ))
 
   desired_dist_comfort = get_safe_obstacle_distance(v_ego, lead_t_follow)
-
   # The main cost in normal operation is how close you are to the "desired" distance
   # from an obstacle at every timestep. This obstacle can be a lead car
   # or other object. In e2e mode we can use x_position targets as a cost
@@ -314,6 +313,8 @@ class LongitudinalMpc:
       a_lead = 0.0
       a_lead_tau = _LEAD_ACCEL_TAU
 
+    # print("x_lead:", x_lead, "v_lead:", v_lead, "a_lead:", a_lead, "a_lead_tau:", a_lead_tau)
+
     # MPC will not converge if immediate crash is expected
     # Clip lead distance to what is still possible to brake for
     min_x_lead = ((v_ego + v_lead)/2) * (v_ego - v_lead) / (-MIN_ACCEL * 2)
@@ -335,7 +336,7 @@ class LongitudinalMpc:
     self.status = radarstate.leadOne.status or radarstate.leadTwo.status
 
     lead_xv_0 = self.process_lead(radarstate.leadOne)
-    lead_xv_1 = self.process_lead(radarstate.leadTwo)
+    lead_xv_1 = self.process_lead(radarstate.leadOne)
 
     # To estimate a safe distance from a moving lead, we calculate how much stopping
     # distance that lead needs as a minimum. We can add that to the current distance
@@ -349,7 +350,7 @@ class LongitudinalMpc:
     # Update in ACC mode or ACC/e2e blend
     if self.mode == 'acc':
       self.params[:,5] = LEAD_DANGER_FACTOR
-
+      
       # Fake an obstacle for cruise, this ensures smooth acceleration to set speed
       # when the leads are no factor.
       v_lower = v_ego + (T_IDXS * self.cruise_min_a * 1.05)
