@@ -122,15 +122,14 @@ class Controls:
     CP.tireStiffnessFront = 120000.0
     CP.tireStiffnessRear  = 130000.0
     CP.steerRatio = 15.0
-
-    CP.vEgoStopping = 0.3
     CP.stopAccel = -1.0
+    CP.vEgoStopping = 0.15
     CP.stoppingDecelRate = 0.8
-    
+            
     CP.longitudinalActuatorDelayLowerBound = 0.1
     CP.longitudinalActuatorDelayUpperBound = 0.2
     CP.longitudinalTuning.kpBP = [0.0, 5.0, 20.0]
-    CP.longitudinalTuning.kpV = [1.4, 1.1, 0.7]
+    CP.longitudinalTuning.kpV = [0.8, 0.6, 0.5]
     CP.longitudinalTuning.kiBP = [0.0, 5.0, 20.0]
     CP.longitudinalTuning.kiV = [0.18, 0.12, 0.08]
     CP.longitudinalTuning.deadzoneBP = [0.0, 20.0]
@@ -192,7 +191,7 @@ class Controls:
         CS.steerFaultPermanent = False
 
         CS.cruiseState.enabled = True
-        CS.cruiseState.standstill = False
+        CS.cruiseState.standstill =vs.cruiseState.standstill
         CS.cruiseState.speed = vs.cruiseState.speed
         CS.cruiseState.available = vs.cruiseState.available
 
@@ -250,7 +249,8 @@ class Controls:
     car_recognized = True #self.CP.carName != 'mock'
 
     controller_available = self.CI.CC is not None and not passive and not self.CP.dashcamOnly
-    self.read_only = not car_recognized or not controller_available or self.CP.dashcamOnly
+    print("control avaliable ", controller_available)
+    self.read_only = False #not car_recognized or not controller_available or self.CP.dashcamOnly
     if self.read_only:
       safety_config = car.CarParams.SafetyConfig.new_message()
       safety_config.safetyModel = car.CarParams.SafetyModel.noOutput
@@ -985,7 +985,8 @@ class Controls:
 
     self.update_events(CS)
     cloudlog.timestamp("Events updated")
-
+    print("self.readonly ", self.read_only)
+    print("self.init: " , self.initialized)
     if not self.read_only and self.initialized:
       # Update control state
       self.state_transition(CS)

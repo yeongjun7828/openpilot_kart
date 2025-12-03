@@ -53,10 +53,10 @@ class VCruiseHelper:
 
   def update_v_cruise(self, CS, enabled, is_metric):
     self.v_cruise_kph_last = self.v_cruise_kph
-    # print("CS.cruiseState.speed:", CS.cruiseState.speed)
+    print("CS.cruiseState.speed:", CS.cruiseState.speed)
     # print("CV.MS_TO_KPH:", CV.MS_TO_KPH)
-    # print("Cs.cruiseState.available:", CS.cruiseState.available)
-    # print("v cruise_kph : ", self.v_cruise_kph)
+    print("Cs.cruiseState.available:", CS.cruiseState.available)
+    print("v cruise_kph : ", self.v_cruise_kph)
     # Initialize v_cruise to current speed if unset
     if self.v_cruise_kph == V_CRUISE_UNSET:
       self.v_cruise_kph = V_CRUISE_MIN
@@ -69,7 +69,7 @@ class VCruiseHelper:
         self.update_button_timers(CS, enabled)
       else:
         self.v_cruise_kph = CS.cruiseState.speed * CV.MS_TO_KPH
-        # print("pcmCruise : ", self.v_cruise_kph )
+        print("pcmCruise : ", self.v_cruise_kph )
         self.v_cruise_cluster_kph = CS.cruiseState.speedCluster * CV.MS_TO_KPH
     else:
       self.v_cruise_kph = V_CRUISE_UNSET

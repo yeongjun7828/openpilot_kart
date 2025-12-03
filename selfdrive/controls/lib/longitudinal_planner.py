@@ -96,7 +96,7 @@ class LongitudinalPlanner:
     v_cruise_kph = sm['controlsState'].vCruise
     v_cruise_kph = min(v_cruise_kph, V_CRUISE_MAX)
     v_cruise = v_cruise_kph * CV.KPH_TO_MS
-    # print("v_cruise_kph:", v_cruise_kph, "v_cruise:", v_cruise)
+   # print("v_cruise_kph:", v_cruise_kph, "v_cruise:", v_cruise)
     long_control_off = sm['controlsState'].longControlState == LongCtrlState.off
     force_slow_decel = sm['controlsState'].forceDecel
 

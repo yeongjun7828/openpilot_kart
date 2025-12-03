@@ -16,24 +16,29 @@ def long_control_state_trans(CP, active, long_control_state, v_ego, v_target,
   # Use threshold to avoid false positives from numerical noise when both speeds are very low
   # If both speeds are below 0.05 m/s (~0.18 km/h), require >0.01 m/s difference to be "accelerating"
   # Otherwise use normal comparison
+  print("v ego :", v_ego)
+  print("vtarget1sec-vtarget", (v_target_1sec - v_target))
+  print("CP cruese standstill",cruise_standstill )
+  print("ego stop :", CP.vEgoStopping)
+ # cruise_standstill = True
   if v_target < 0.05 and v_target_1sec < 0.05:
     accelerating = (v_target_1sec - v_target) > 0.01
   else:
     accelerating = v_target_1sec > v_target
-  
+
   planned_stop = (v_target < CP.vEgoStopping and
                   v_target_1sec < CP.vEgoStopping and
                   not accelerating)
   stay_stopped = (v_ego < CP.vEgoStopping and
                   (brake_pressed or cruise_standstill))
-  stopping_condition = planned_stop or stay_stopped
+  stopping_condition = stay_stopped #planned_stop or
 
   starting_condition = (v_target_1sec > CP.vEgoStarting and
                         accelerating and
                         not cruise_standstill and
                         not brake_pressed)
   started_condition = v_ego > CP.vEgoStarting
-  print("v_ego:", v_ego, " v_target:", v_target, " v_target_1sec:", v_target_1sec)
+ # print("v_ego:", v_ego, " v_target:", v_target, " v_target_1sec:", v_target_1sec)
   print("accelerating:", accelerating, " planned_stop : ", planned_stop, " stay_stopped :", stay_stopped, " stopping_condition :", stopping_condition, " starting_condition :", starting_condition, " started_condition :", started_condition, " cruise_standstill :", cruise_standstill)
   if not active:
     long_control_state = LongCtrlState.off
@@ -51,9 +56,11 @@ def long_control_state_trans(CP, active, long_control_state, v_ego, v_target,
         long_control_state = LongCtrlState.pid
 
     elif long_control_state == LongCtrlState.starting:
+      print("starting_condition")
       if stopping_condition:
         long_control_state = LongCtrlState.stopping
       elif started_condition:
+        print("started to pid")
         long_control_state = LongCtrlState.pid
 
   return long_control_state
@@ -77,7 +84,7 @@ class LongControl:
   def update(self, active, CS, long_plan, accel_limits, t_since_plan):
     """Update longitudinal control. This updates the state machine and runs a PID loop"""
     # Interp control trajectory
-    # print("active:", active)
+    print("active:", active)
     speeds = long_plan.speeds
     if len(speeds) == CONTROL_N:
       v_target_now = interp(t_since_plan, T_IDXS[:CONTROL_N], speeds)
