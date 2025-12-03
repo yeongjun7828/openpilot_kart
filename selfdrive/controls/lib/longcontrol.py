@@ -12,7 +12,15 @@ def long_control_state_trans(CP, active, long_control_state, v_ego, v_target,
                              v_target_1sec, brake_pressed, cruise_standstill):
   # Ignore cruise standstill if car has a gas interceptor
   cruise_standstill = cruise_standstill and not CP.enableGasInterceptor
-  accelerating = v_target_1sec > v_target
+  
+  # Use threshold to avoid false positives from numerical noise when both speeds are very low
+  # If both speeds are below 0.05 m/s (~0.18 km/h), require >0.01 m/s difference to be "accelerating"
+  # Otherwise use normal comparison
+  if v_target < 0.05 and v_target_1sec < 0.05:
+    accelerating = (v_target_1sec - v_target) > 0.01
+  else:
+    accelerating = v_target_1sec > v_target
+  
   planned_stop = (v_target < CP.vEgoStopping and
                   v_target_1sec < CP.vEgoStopping and
                   not accelerating)
@@ -25,7 +33,8 @@ def long_control_state_trans(CP, active, long_control_state, v_ego, v_target,
                         not cruise_standstill and
                         not brake_pressed)
   started_condition = v_ego > CP.vEgoStarting
-
+  print("v_ego:", v_ego, " v_target:", v_target, " v_target_1sec:", v_target_1sec)
+  print("accelerating:", accelerating, " planned_stop : ", planned_stop, " stay_stopped :", stay_stopped, " stopping_condition :", stopping_condition, " starting_condition :", starting_condition, " started_condition :", started_condition, " cruise_standstill :", cruise_standstill)
   if not active:
     long_control_state = LongCtrlState.off
 
@@ -83,7 +92,9 @@ class LongControl:
       v_target = min(v_target_lower, v_target_upper)
       a_target = min(a_target_lower, a_target_upper)
 
-      v_target_1sec = interp(self.CP.longitudinalActuatorDelayUpperBound + t_since_plan + 1.0, T_IDXS[:CONTROL_N], speeds)
+      # v_target_1sec = interp(self.CP.longitudinalActuatorDelayUpperBound + t_since_plan + 1.0, T_IDXS[:CONTROL_N], speeds)
+      v_target_1sec = interp(t_since_plan + 1.0, T_IDXS[:CONTROL_N], speeds)
+
     else:
       v_target = 0.0
       v_target_now = 0.0
@@ -104,8 +115,10 @@ class LongControl:
       output_accel = 0.
 
     elif self.long_control_state == LongCtrlState.stopping:
+      print("In stopping state")
+      print("output_accel before clip:", output_accel)
       if output_accel > self.CP.stopAccel:
-        output_accel = min(output_accel, 0.0)
+        output_accel = min(output_accel, -0.3)
         output_accel -= self.CP.stoppingDecelRate * DT_CTRL
       self.reset(CS.vEgo)
 
@@ -124,6 +137,7 @@ class LongControl:
       freeze_integrator = prevent_overshoot
 
       error = self.v_pid - CS.vEgo
+      print("speed error :", error)
       # print("v_pid:", self.v_pid, "v_ego:", CS.vEgo, "error:", error)
       error_deadzone = apply_deadzone(error, deadzone)
       output_accel = self.pid.update(error_deadzone, speed=CS.vEgo,

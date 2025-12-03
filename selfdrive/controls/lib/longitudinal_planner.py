@@ -92,7 +92,7 @@ class LongitudinalPlanner:
     self.param_read_counter += 1
     self.mpc.mode = 'blended' if sm['controlsState'].experimentalMode else 'acc'
 
-    v_ego = sm['carState'].vEgo
+    v_ego = sm['vehicleState'].vEgo
     v_cruise_kph = sm['controlsState'].vCruise
     v_cruise_kph = min(v_cruise_kph, V_CRUISE_MAX)
     v_cruise = v_cruise_kph * CV.KPH_TO_MS
@@ -104,11 +104,11 @@ class LongitudinalPlanner:
     reset_state = long_control_off if self.CP.openpilotLongitudinalControl else not sm['controlsState'].enabled
 
     # No change cost when user is controlling the speed, or when standstill
-    prev_accel_constraint = not (reset_state or sm['carState'].standstill)
+    prev_accel_constraint = not (reset_state or sm['vehicleState'].standstill)
 
     if self.mpc.mode == 'acc':
       accel_limits = [A_CRUISE_MIN, get_max_accel(v_ego)]
-      accel_limits_turns = limit_accel_in_turns(v_ego, sm['carState'].steeringAngleDeg, accel_limits, self.CP)
+      accel_limits_turns = limit_accel_in_turns(v_ego, sm['vehicleState'].steeringAngleDeg, accel_limits, self.CP)
     else:
       accel_limits = [MIN_ACCEL, MAX_ACCEL]
       accel_limits_turns = [MIN_ACCEL, MAX_ACCEL]
@@ -116,7 +116,7 @@ class LongitudinalPlanner:
     if reset_state:
       self.v_desired_filter.x = v_ego
       # Clip aEgo to cruise limits to prevent large accelerations when becoming active
-      self.a_desired = clip(sm['carState'].aEgo, accel_limits[0], accel_limits[1])
+      self.a_desired = clip(sm['vehicleState'].aEgo, accel_limits[0], accel_limits[1])
 
     # Prevent divergence, smooth in current v_ego
     self.v_desired_filter.x = max(0.0, self.v_desired_filter.update(v_ego))
@@ -142,7 +142,7 @@ class LongitudinalPlanner:
     self.j_desired_trajectory = np.interp(T_IDXS[:CONTROL_N], T_IDXS_MPC[:-1], self.mpc.j_solution)
 
     # TODO counter is only needed because radar is glitchy, remove once radar is gone
-    self.fcw = self.mpc.crash_cnt > 2 and not sm['carState'].standstill
+    self.fcw = self.mpc.crash_cnt > 2 and not sm['vehicleState'].standstill
     if self.fcw:
       cloudlog.info("FCW triggered")
 
@@ -154,7 +154,7 @@ class LongitudinalPlanner:
   def publish(self, sm, pm):
     plan_send = messaging.new_message('longitudinalPlan')
 
-    plan_send.valid = sm.all_checks(service_list=['carState', 'controlsState'])
+    plan_send.valid = sm.all_checks(service_list=['vehicleState', 'controlsState'])
 
     longitudinalPlan = plan_send.longitudinalPlan
     longitudinalPlan.modelMonoTime = sm.logMonoTime['modelV2']

@@ -13,15 +13,15 @@ TRAJECTORY_SIZE = 33
 CAMERA_OFFSET = 0.04
 
 
-PATH_COST = 1.0
-LATERAL_MOTION_COST = 0.11
+PATH_COST = 1.0  # 경로 추종을 매우 강하게
+LATERAL_MOTION_COST = 0.1  # 횡방향 움직임 페널티 최소화
 LATERAL_ACCEL_COST = 0.0
-LATERAL_JERK_COST = 0.04
+LATERAL_JERK_COST = 0.01  # jerk 페널티도 낮춤
 # Extreme steering rate is unpleasant, even
 # when it does not cause bad jerk.
 # TODO this cost should be lowered when low
 # speed lateral control is stable on all cars
-STEERING_RATE_COST = 700.0
+STEERING_RATE_COST = 100.0  # 스티어링 속도 제약 완화
 
 
 class LateralPlanner:
@@ -55,7 +55,7 @@ class LateralPlanner:
   def update(self, sm):
     # clip speed , lateral planning is not possible at 0 speed
     measured_curvature = sm['controlsState'].curvature
-    v_ego_car = sm['carState'].vEgo
+    v_ego_car = sm['vehicleState'].vEgo
 
     # Parse model predictions
     md = sm['modelV2']
@@ -80,7 +80,7 @@ class LateralPlanner:
     lane_change_prob = 0.0 #self.l_lane_change_prob + self.r_lane_change_prob
     # lane_change_prob = self.l_lane_change_prob + self.r_lane_change_prob
 
-    self.DH.update(sm['carState'], sm['carControl'].latActive, lane_change_prob)
+    self.DH.update(sm['vehicleState'], sm['carControl'].latActive, lane_change_prob)
 
     self.lat_mpc.set_weights(PATH_COST, LATERAL_MOTION_COST,
                              LATERAL_ACCEL_COST, LATERAL_JERK_COST,
@@ -125,7 +125,7 @@ class LateralPlanner:
   def publish(self, sm, pm):
     plan_solution_valid = self.solution_invalid_cnt < 2
     plan_send = messaging.new_message('lateralPlan')
-    plan_send.valid = sm.all_checks(service_list=['carState', 'controlsState', 'modelV2'])
+    plan_send.valid = sm.all_checks(service_list=['vehicleState', 'controlsState', 'modelV2'])
 
     lateralPlan = plan_send.lateralPlan
     lateralPlan.modelMonoTime = sm.logMonoTime['modelV2']

@@ -19,7 +19,7 @@ def publish_ui_plan(sm, pm, lateral_planner, longitudinal_planner):
   model_odo = cumtrapz(lateral_planner.v_plan, T_IDXS)
 
   ui_send = messaging.new_message('uiPlan')
-  ui_send.valid = sm.all_checks(service_list=['carState', 'controlsState', 'modelV2'])
+  ui_send.valid = sm.all_checks(service_list=['vehicleState', 'controlsState', 'modelV2'])
   uiPlan = ui_send.uiPlan
   uiPlan.frameId = sm['modelV2'].frameId
   uiPlan.position.x = np.interp(plan_odo, model_odo, lateral_planner.lat_mpc.x_sol[:,0]).tolist()
@@ -43,18 +43,18 @@ def plannerd_thread(sm=None, pm=None):
   CP.minSteerSpeed = 0.0
   CP.steerControlType = car.CarParams.SteerControlType.angle
 
-  CP.mass = 1700.0
-  CP.wheelbase = 2.80
-  CP.centerToFront = 1.20
+  CP.mass = 200.0
+  CP.wheelbase = 1.0
+  CP.centerToFront = 0.5
   CP.tireStiffnessFront = 120000.0
   CP.tireStiffnessRear  = 130000.0
-  CP.steerRatio = 15.0
+  CP.steerRatio = 1.6
 
   longitudinal_planner = LongitudinalPlanner(CP)
   lateral_planner = LateralPlanner(CP)
 
   if sm is None:
-    sm = messaging.SubMaster(['carControl', 'carState', 'controlsState', 'radarState', 'modelV2'],
+    sm = messaging.SubMaster(['carControl', 'vehicleState', 'controlsState', 'radarState', 'modelV2'],
                              poll=['radarState', 'modelV2'], ignore_avg_freq=['radarState'])
 
   if pm is None:

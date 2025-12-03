@@ -106,7 +106,14 @@ class Controls:
     CP.dashcamOnly = False
     CP.openpilotLongitudinalControl = True
     CP.minSteerSpeed = 0.0
-    CP.steerControlType = car.CarParams.SteerControlType.angle
+    # CP.steerControlType = car.CarParams.SteerControlType.angle
+    CP.steerControlType = car.CarParams.SteerControlType.torque
+    CP.lateralTuning.init('pid')
+    CP.lateralTuning.pid.kpBP = [0.]
+    CP.lateralTuning.pid.kpV = [0.05]
+    CP.lateralTuning.pid.kiBP = [0.]
+    CP.lateralTuning.pid.kiV = [0.01]
+    CP.lateralTuning.pid.kf = 0.00006
 
     # VehicleModel 파라미터 (0이면 크래시)
     CP.mass = 1700.0
@@ -116,6 +123,10 @@ class Controls:
     CP.tireStiffnessRear  = 130000.0
     CP.steerRatio = 15.0
 
+    CP.vEgoStopping = 0.3
+    CP.stopAccel = -1.0
+    CP.stoppingDecelRate = 0.8
+    
     CP.longitudinalActuatorDelayLowerBound = 0.1
     CP.longitudinalActuatorDelayUpperBound = 0.2
     CP.longitudinalTuning.kpBP = [0.0, 5.0, 20.0]
@@ -157,6 +168,7 @@ class Controls:
         # 합성 CarState 생성
         CS = car.CarState.new_message()
         if not self.sm.valid['vehicleState']:
+          print("FakeCI: vehicleState 메시지 유효하지 않음, 이전 상태 반환")
           return self.CS_prev
         
         vs = self.sm['vehicleState']
@@ -180,7 +192,7 @@ class Controls:
         CS.steerFaultPermanent = False
 
         CS.cruiseState.enabled = True
-        CS.cruiseState.standstill = CS.standstill
+        CS.cruiseState.standstill = False
         CS.cruiseState.speed = vs.cruiseState.speed
         CS.cruiseState.available = vs.cruiseState.available
 
@@ -204,6 +216,16 @@ class Controls:
       def apply(self, CC, now_nanos):
         # 실제 CAN 송신 없이, 액추에이터 출력만 에코S
         return CC.actuators, []
+      
+      @staticmethod
+      def get_steer_feedforward_default(desired_angle, v_ego):
+        # Proportional to realigning tire momentum: lateral acceleration.
+        # TODO: 필요하면 더 현실적인 모델로 변경
+        return desired_angle * (v_ego ** 2)
+
+      # === Steer Feedforward 함수 제공 ===
+      def get_steer_feedforward_function(self):
+        return self.get_steer_feedforward_default
 
     # 외부에서 CI를 넘기지 않았다면 FakeCI 사용
     self.CI = CI if CI is not None else FakeCI(self.CP,self.sm)
@@ -377,7 +399,7 @@ class Controls:
     #cpus = list(self.sm['deviceState'].cpuUsagePercent)
     #if max(cpus, default=0) > 95 and not SIMULATION:
     #  self.events.add(EventName.highCpuUsage)
-
+    
     # Alert if fan isn't spinning for 5 seconds
     if self.sm['peripheralState'].pandaType != log.PandaState.PandaType.unknown:
       if self.sm['peripheralState'].fanSpeedRpm < 500 and self.sm['deviceState'].fanSpeedPercentDesired > 50:
