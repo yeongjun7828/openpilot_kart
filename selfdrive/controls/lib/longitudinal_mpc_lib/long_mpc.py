@@ -37,7 +37,7 @@ A_EGO_COST = 0.
 J_EGO_COST = 5.0
 A_CHANGE_COST = 200.
 DANGER_ZONE_COST = 100.
-CRASH_DISTANCE = .25
+CRASH_DISTANCE = 5.0  #.25
 LEAD_DANGER_FACTOR = 0.75
 LIMIT_COST = 1e6
 ACADOS_SOLVER_TYPE = 'SQP_RTI'
@@ -55,7 +55,7 @@ T_DIFFS = np.diff(T_IDXS, prepend=[0.])
 MIN_ACCEL = -3.5
 MAX_ACCEL = 2.0
 COMFORT_BRAKE = 2.5
-STOP_DISTANCE = 6.0
+STOP_DISTANCE =15.0
 
 def get_jerk_factor(personality=log.LongitudinalPersonality.standard):
   if personality==log.LongitudinalPersonality.relaxed:
@@ -70,10 +70,13 @@ def get_jerk_factor(personality=log.LongitudinalPersonality.standard):
 
 def get_T_FOLLOW(personality=log.LongitudinalPersonality.standard):
   if personality==log.LongitudinalPersonality.relaxed:
+    #print("relax")
     return 1.75
   elif personality==log.LongitudinalPersonality.standard:
-    return 1.45
+    #print("standard")
+    return 1.9
   elif personality==log.LongitudinalPersonality.aggressive:
+    #print("aggressive")
     return 1.25
   else:
     raise NotImplementedError("Longitudinal personality not supported")
@@ -160,6 +163,7 @@ def gen_long_ocp():
   # from an obstacle at every timestep. This obstacle can be a lead car
   # or other object. In e2e mode we can use x_position targets as a cost
   # instead.
+  print("desired_dist_comfort ", desired_dist_comfort)
   costs = [((x_obstacle - x_ego) - (desired_dist_comfort)) / (v_ego + 10.),
            x_ego,
            v_ego,
@@ -355,10 +359,18 @@ class LongitudinalMpc:
       # when the leads are no factor.
       v_lower = v_ego + (T_IDXS * self.cruise_min_a * 1.05)
       v_upper = v_ego + (T_IDXS * self.max_a * 1.05)
+      if v_cruise < 0.5:  # 0.5 m/s ~ 1.8 km/h threshold
+        print("v_cruise is small -> set v_lower 0")  
+        v_lower = np.minimum(v_lower, v_cruise * np.ones(N+1))
+
       v_cruise_clipped = np.clip(v_cruise * np.ones(N+1),
                                  v_lower,
                                  v_upper)
-      cruise_obstacle = np.cumsum(T_DIFFS * v_cruise_clipped) + get_safe_obstacle_distance(v_cruise_clipped, get_T_FOLLOW())
+#      cruise_obstacle = np.cumsum(T_DIFFS * v_cruise_clipped) + get_safe_obstacle_distance(v_cruise_clipped, get_T_FOLLOW())
+      if v_cruise < 0.5:
+        cruise_obstacle = np.ones(N+1) * STOP_DISTANCE  # Place obstacle at STOP_DISTANCE
+      else:
+        cruise_obstacle = np.cumsum(T_DIFFS * v_cruise_clipped) + get_safe_obstacle_distance(v_cruise_clipped, get_T_FOLLOW())
       x_obstacles = np.column_stack([lead_0_obstacle, lead_1_obstacle, cruise_obstacle])
       self.source = SOURCES[np.argmin(x_obstacles[0])]
 

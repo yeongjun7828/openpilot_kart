@@ -106,8 +106,9 @@ class Controls:
     CP.dashcamOnly = False
     CP.openpilotLongitudinalControl = True
     CP.minSteerSpeed = 0.0
-    # CP.steerControlType = car.CarParams.SteerControlType.angle
-    CP.steerControlType = car.CarParams.SteerControlType.torque
+    CP.steerControlType = car.CarParams.SteerControlType.angle
+    CP.steerActuatorDelay = 0.1  # Steering actuator delay
+    CP.steerLimitTimer = 0.4  # Time before steer saturation is triggered
     CP.lateralTuning.init('pid')
     CP.lateralTuning.pid.kpBP = [0.]
     CP.lateralTuning.pid.kpV = [0.05]
@@ -122,9 +123,13 @@ class Controls:
     CP.tireStiffnessFront = 120000.0
     CP.tireStiffnessRear  = 130000.0
     CP.steerRatio = 15.0
+    CP.maxSteeringAngleDeg = 450.0
     CP.stopAccel = -1.0
     CP.vEgoStopping = 0.15
     CP.stoppingDecelRate = 0.8
+    CP.vEgoStarting = 0.5
+    CP.startAccel = 0.3
+    CP.startingState = True
             
     CP.longitudinalActuatorDelayLowerBound = 0.1
     CP.longitudinalActuatorDelayUpperBound = 0.2

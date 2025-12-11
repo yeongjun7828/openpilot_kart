@@ -16,22 +16,30 @@ def long_control_state_trans(CP, active, long_control_state, v_ego, v_target,
   # Use threshold to avoid false positives from numerical noise when both speeds are very low
   # If both speeds are below 0.05 m/s (~0.18 km/h), require >0.01 m/s difference to be "accelerating"
   # Otherwise use normal comparison
-  print("v ego :", v_ego)
-  print("vtarget1sec-vtarget", (v_target_1sec - v_target))
-  print("CP cruese standstill",cruise_standstill )
-  print("ego stop :", CP.vEgoStopping)
+  #print("v ego :", v_ego)
+  #print("v_target :", v_target)
+  #print("vtarget1sec-vtarget", (v_target_1sec - v_target))
  # cruise_standstill = True
-  if v_target < 0.05 and v_target_1sec < 0.05:
-    accelerating = (v_target_1sec - v_target) > 0.01
+#  if v_target < 0.05 and v_target_1sec < 0.05:
+ #   accelerating = (v_target_1sec - v_target) > 0.01
+ # else:
+ #   accelerating = v_target_1sec > v_target
+  threshold_speed = CP.vEgoStopping  # 0.15
+# 가속으로 인정할 최소 차이 (현재 로그의 0.025 무시를 위해 0.03~0.05 정도로 상향)
+  accel_threshold = 0.05
+
+  if v_target < threshold_speed and v_target_1sec < threshold_speed:
+  # 미세한 속도 증가는 가속으로 보지 않음 (노이즈 무시)
+   accelerating = (v_target_1sec - v_target) > accel_threshold
   else:
-    accelerating = v_target_1sec > v_target
+   accelerating = v_target_1sec > v_target
 
   planned_stop = (v_target < CP.vEgoStopping and
                   v_target_1sec < CP.vEgoStopping and
                   not accelerating)
   stay_stopped = (v_ego < CP.vEgoStopping and
                   (brake_pressed or cruise_standstill))
-  stopping_condition = stay_stopped #planned_stop or
+  stopping_condition = stay_stopped or planned_stop
 
   starting_condition = (v_target_1sec > CP.vEgoStarting and
                         accelerating and
@@ -46,6 +54,7 @@ def long_control_state_trans(CP, active, long_control_state, v_ego, v_target,
   else:
     if long_control_state in (LongCtrlState.off, LongCtrlState.pid):
       long_control_state = LongCtrlState.pid
+   #   print("In PID state")
       if stopping_condition:
         long_control_state = LongCtrlState.stopping
 
@@ -56,11 +65,11 @@ def long_control_state_trans(CP, active, long_control_state, v_ego, v_target,
         long_control_state = LongCtrlState.pid
 
     elif long_control_state == LongCtrlState.starting:
-      print("starting_condition")
+    #print("starting_condition")
       if stopping_condition:
         long_control_state = LongCtrlState.stopping
       elif started_condition:
-        print("started to pid")
+     #   print("started to pid")
         long_control_state = LongCtrlState.pid
 
   return long_control_state
@@ -84,7 +93,7 @@ class LongControl:
   def update(self, active, CS, long_plan, accel_limits, t_since_plan):
     """Update longitudinal control. This updates the state machine and runs a PID loop"""
     # Interp control trajectory
-    print("active:", active)
+#    print("active:", active)
     speeds = long_plan.speeds
     if len(speeds) == CONTROL_N:
       v_target_now = interp(t_since_plan, T_IDXS[:CONTROL_N], speeds)
@@ -116,14 +125,14 @@ class LongControl:
                                                        v_target, v_target_1sec, CS.brakePressed,
                                                        CS.cruiseState.standstill)
     
-    # print("long_control_state:", self.long_control_state)
+ #   print("long_control_state:", self.long_control_state)
     if self.long_control_state == LongCtrlState.off:
       self.reset(CS.vEgo)
       output_accel = 0.
 
     elif self.long_control_state == LongCtrlState.stopping:
-      print("In stopping state")
-      print("output_accel before clip:", output_accel)
+      #print("In stopping state")
+      #print("output_accel before clip:", output_accel)
       if output_accel > self.CP.stopAccel:
         output_accel = min(output_accel, -0.3)
         output_accel -= self.CP.stoppingDecelRate * DT_CTRL
@@ -144,7 +153,7 @@ class LongControl:
       freeze_integrator = prevent_overshoot
 
       error = self.v_pid - CS.vEgo
-      print("speed error :", error)
+      #print("speed error :", error)
       # print("v_pid:", self.v_pid, "v_ego:", CS.vEgo, "error:", error)
       error_deadzone = apply_deadzone(error, deadzone)
       output_accel = self.pid.update(error_deadzone, speed=CS.vEgo,
