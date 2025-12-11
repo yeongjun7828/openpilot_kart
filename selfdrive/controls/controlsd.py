@@ -123,20 +123,20 @@ class Controls:
     CP.tireStiffnessFront = 120000.0
     CP.tireStiffnessRear  = 130000.0
     CP.steerRatio = 15.0
-    CP.maxSteeringAngleDeg = 450.0
+ #   CP.maxSteeringAngleDeg = 450.0
     CP.stopAccel = -1.0
     CP.vEgoStopping = 0.15
     CP.stoppingDecelRate = 0.8
-    CP.vEgoStarting = 0.5
-    CP.startAccel = 0.3
-    CP.startingState = True
+    CP.vEgoStarting = 0.3
+#    CP.startAccel = 0.3
+ #   CP.startingState = True
             
     CP.longitudinalActuatorDelayLowerBound = 0.1
     CP.longitudinalActuatorDelayUpperBound = 0.2
     CP.longitudinalTuning.kpBP = [0.0, 5.0, 20.0]
-    CP.longitudinalTuning.kpV = [0.8, 0.6, 0.5]
+    CP.longitudinalTuning.kpV = [0.5, 0.6, 0.5]
     CP.longitudinalTuning.kiBP = [0.0, 5.0, 20.0]
-    CP.longitudinalTuning.kiV = [0.18, 0.12, 0.08]
+    CP.longitudinalTuning.kiV = [0.1, 0.01, 0.01]
     CP.longitudinalTuning.deadzoneBP = [0.0, 20.0]
     CP.longitudinalTuning.deadzoneV = [0.0, 0.05]
 
@@ -184,7 +184,7 @@ class Controls:
 
         # print("FakeCI update(): vEgo =", v, "steeringAngleDeg =", steer_deg)
         CS.vEgoRaw = vs.vEgo
-        CS.standstill = vs.vEgo < 0.1
+       # CS.standstill = vs.vEgo < 0.1
         CS.steeringPressed = False
 
         CS.leftBlinker = False
@@ -254,7 +254,7 @@ class Controls:
     car_recognized = True #self.CP.carName != 'mock'
 
     controller_available = self.CI.CC is not None and not passive and not self.CP.dashcamOnly
-    print("control avaliable ", controller_available)
+    #print("control avaliable ", controller_available)
     self.read_only = False #not car_recognized or not controller_available or self.CP.dashcamOnly
     if self.read_only:
       safety_config = car.CarParams.SafetyConfig.new_message()
@@ -990,8 +990,8 @@ class Controls:
 
     self.update_events(CS)
     cloudlog.timestamp("Events updated")
-    print("self.readonly ", self.read_only)
-    print("self.init: " , self.initialized)
+#    print("self.readonly ", self.read_only)
+ #   print("self.init: " , self.initialized)
     if not self.read_only and self.initialized:
       # Update control state
       self.state_transition(CS)

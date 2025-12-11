@@ -30,7 +30,7 @@ COST_E_DIM = 5
 COST_DIM = COST_E_DIM + 1
 CONSTR_DIM = 4
 
-X_EGO_OBSTACLE_COST = 3.
+X_EGO_OBSTACLE_COST = 300.
 X_EGO_COST = 0.
 V_EGO_COST = 0.
 A_EGO_COST = 0.
@@ -84,8 +84,19 @@ def get_T_FOLLOW(personality=log.LongitudinalPersonality.standard):
 def get_stopped_equivalence_factor(v_lead):
   return (v_lead**2) / (2 * COMFORT_BRAKE)
 
-def get_safe_obstacle_distance(v_ego, t_follow):
-  return (v_ego**2) / (2 * COMFORT_BRAKE) + t_follow * v_ego + STOP_DISTANCE
+def get_safe_obstacle_distance(v_ego, t_follow, low_speed_mode=False):
+  # Calculate dynamic braking distance based on speed
+  braking_distance = (v_ego**2) / (2 * COMFORT_BRAKE)
+  following_distance = t_follow * v_ego
+  
+  if low_speed_mode:
+    # For very low speeds, use minimal base safety margin to enable accurate speed tracking
+    # But still respect dynamic braking distance
+    base_safety = 6.0  # Reduced from STOP_DISTANCE (15m) for low-speed cruise
+  else:
+    base_safety = STOP_DISTANCE
+  
+  return braking_distance + following_distance + base_safety
 
 def desired_follow_distance(v_ego, v_lead, t_follow=get_T_FOLLOW()):
   return get_safe_obstacle_distance(v_ego, t_follow) - get_stopped_equivalence_factor(v_lead)
@@ -347,6 +358,11 @@ class LongitudinalMpc:
     # and then treat that as a stopped car/obstacle at this new distance.
     lead_0_obstacle = lead_xv_0[:,0] + get_stopped_equivalence_factor(lead_xv_0[:,1])
     lead_1_obstacle = lead_xv_1[:,0] + get_stopped_equivalence_factor(lead_xv_1[:,1])
+    
+    if radarstate.leadOne.status:
+      print(f"LEAD DETECTED: dRel={radarstate.leadOne.dRel:.1f}m vLead={radarstate.leadOne.vLead:.2f} lead_0_obstacle[0]={lead_0_obstacle[0]:.1f}m")
+      my_stopping_dist = (v_ego**2)/(2*COMFORT_BRAKE) + get_T_FOLLOW(personality)*v_ego + STOP_DISTANCE
+      print(f"v_ego={v_ego:.2f} my_stopping_dist={my_stopping_dist:.1f}m DANGER_FACTOR={LEAD_DANGER_FACTOR} → min_safe={my_stopping_dist*LEAD_DANGER_FACTOR:.1f}m")
 
     self.params[:,0] = MIN_ACCEL
     self.params[:,1] = self.max_a
@@ -359,20 +375,33 @@ class LongitudinalMpc:
       # when the leads are no factor.
       v_lower = v_ego + (T_IDXS * self.cruise_min_a * 1.05)
       v_upper = v_ego + (T_IDXS * self.max_a * 1.05)
-      if v_cruise < 0.5:  # 0.5 m/s ~ 1.8 km/h threshold
-        print("v_cruise is small -> set v_lower 0")  
+      
+      LOW_SPEED_THRESHOLD = 2.8  # m/s ~ 10 km/h, adjust based on testing
+      
+      if v_cruise < LOW_SPEED_THRESHOLD:
+        print(f"v_cruise={v_cruise:.2f} is below threshold -> set v_lower constraint")  
         v_lower = np.minimum(v_lower, v_cruise * np.ones(N+1))
 
       v_cruise_clipped = np.clip(v_cruise * np.ones(N+1),
                                  v_lower,
                                  v_upper)
-#      cruise_obstacle = np.cumsum(T_DIFFS * v_cruise_clipped) + get_safe_obstacle_distance(v_cruise_clipped, get_T_FOLLOW())
-      if v_cruise < 0.5:
-        cruise_obstacle = np.ones(N+1) * STOP_DISTANCE  # Place obstacle at STOP_DISTANCE
-      else:
-        cruise_obstacle = np.cumsum(T_DIFFS * v_cruise_clipped) + get_safe_obstacle_distance(v_cruise_clipped, get_T_FOLLOW())
+      
+      # For low speeds, reduce STOP_DISTANCE to avoid overshooting target speed
+      # STOP_DISTANCE (15m) is too large for low-speed cruise tracking
+      # But we need enough distance to stop safely when detecting obstacles
+      low_speed_mode = v_cruise < LOW_SPEED_THRESHOLD
+      
+      # Calculate minimum safe distance based on current cruise speed
+      # This ensures we can stop even at cruise speed
+      v_cruise_max = np.max(v_cruise_clipped)
+      min_safe_dist = (v_cruise_max**2) / (2 * COMFORT_BRAKE) + t_follow * v_cruise_max + 3.0
+      
+      cruise_obstacle = np.cumsum(T_DIFFS * v_cruise_clipped) + get_safe_obstacle_distance(v_cruise_clipped, get_T_FOLLOW(), low_speed_mode)
+      
+      print(f"v_cruise={v_cruise:.2f} v_ego={v_ego:.2f} low_speed_mode={low_speed_mode} min_safe_dist={min_safe_dist:.1f}m")
       x_obstacles = np.column_stack([lead_0_obstacle, lead_1_obstacle, cruise_obstacle])
       self.source = SOURCES[np.argmin(x_obstacles[0])]
+      print(f"Obstacles[0]: lead0={lead_0_obstacle[0]:.1f}m lead1={lead_1_obstacle[0]:.1f}m cruise={cruise_obstacle[0]:.1f}m → {self.source}")
 
       # These are not used in ACC mode
       x[:], v[:], a[:], j[:] = 0.0, 0.0, 0.0, 0.0
