@@ -360,9 +360,9 @@ class LongitudinalMpc:
     lead_1_obstacle = lead_xv_1[:,0] + get_stopped_equivalence_factor(lead_xv_1[:,1])
     
     if radarstate.leadOne.status:
-      print(f"LEAD DETECTED: dRel={radarstate.leadOne.dRel:.1f}m vLead={radarstate.leadOne.vLead:.2f} lead_0_obstacle[0]={lead_0_obstacle[0]:.1f}m")
+      #print(f"LEAD DETECTED: dRel={radarstate.leadOne.dRel:.1f}m vLead={radarstate.leadOne.vLead:.2f} lead_0_obstacle[0]={lead_0_obstacle[0]:.1f}m")
       my_stopping_dist = (v_ego**2)/(2*COMFORT_BRAKE) + get_T_FOLLOW(personality)*v_ego + STOP_DISTANCE
-      print(f"v_ego={v_ego:.2f} my_stopping_dist={my_stopping_dist:.1f}m DANGER_FACTOR={LEAD_DANGER_FACTOR} → min_safe={my_stopping_dist*LEAD_DANGER_FACTOR:.1f}m")
+      #print(f"v_ego={v_ego:.2f} my_stopping_dist={my_stopping_dist:.1f}m DANGER_FACTOR={LEAD_DANGER_FACTOR} → min_safe={my_stopping_dist*LEAD_DANGER_FACTOR:.1f}m")
 
     self.params[:,0] = MIN_ACCEL
     self.params[:,1] = self.max_a
@@ -379,7 +379,7 @@ class LongitudinalMpc:
       LOW_SPEED_THRESHOLD = 2.8  # m/s ~ 10 km/h, adjust based on testing
       
       if v_cruise < LOW_SPEED_THRESHOLD:
-        print(f"v_cruise={v_cruise:.2f} is below threshold -> set v_lower constraint")  
+       # print(f"v_cruise={v_cruise:.2f} is below threshold -> set v_lower constraint")  
         v_lower = np.minimum(v_lower, v_cruise * np.ones(N+1))
 
       v_cruise_clipped = np.clip(v_cruise * np.ones(N+1),
@@ -398,10 +398,10 @@ class LongitudinalMpc:
       
       cruise_obstacle = np.cumsum(T_DIFFS * v_cruise_clipped) + get_safe_obstacle_distance(v_cruise_clipped, get_T_FOLLOW(), low_speed_mode)
       
-      print(f"v_cruise={v_cruise:.2f} v_ego={v_ego:.2f} low_speed_mode={low_speed_mode} min_safe_dist={min_safe_dist:.1f}m")
+      #print(f"v_cruise={v_cruise:.2f} v_ego={v_ego:.2f} low_speed_mode={low_speed_mode} min_safe_dist={min_safe_dist:.1f}m")
       x_obstacles = np.column_stack([lead_0_obstacle, lead_1_obstacle, cruise_obstacle])
       self.source = SOURCES[np.argmin(x_obstacles[0])]
-      print(f"Obstacles[0]: lead0={lead_0_obstacle[0]:.1f}m lead1={lead_1_obstacle[0]:.1f}m cruise={cruise_obstacle[0]:.1f}m → {self.source}")
+      #print(f"Obstacles[0]: lead0={lead_0_obstacle[0]:.1f}m lead1={lead_1_obstacle[0]:.1f}m cruise={cruise_obstacle[0]:.1f}m → {self.source}")
 
       # These are not used in ACC mode
       x[:], v[:], a[:], j[:] = 0.0, 0.0, 0.0, 0.0

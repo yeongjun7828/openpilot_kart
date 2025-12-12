@@ -47,17 +47,17 @@ def long_control_state_trans(CP, active, long_control_state, v_ego, v_target,
                         not brake_pressed)
   started_condition = v_ego > CP.vEgoStarting
  # print("v_ego:", v_ego, " v_target:", v_target, " v_target_1sec:", v_target_1sec)
-  print("accelerating:", accelerating, " planned_stop : ", planned_stop, " stay_stopped :", stay_stopped, " stopping_condition :", stopping_condition, " starting_condition :", starting_condition, " started_condition :", started_condition, " cruise_standstill :", cruise_standstill)
+#  print("accelerating:", accelerating, " planned_stop : ", planned_stop, " stay_stopped :", stay_stopped, " stopping_condition :", stopping_condition, " starting_condition :", starting_condition, " started_condition :", started_condition, " cruise_standstill :", cruise_standstill)
   if not active:
     long_control_state = LongCtrlState.off
-    print("not active")
+ #   print("not active")
   else:
     if long_control_state in (LongCtrlState.off, LongCtrlState.pid):
       long_control_state = LongCtrlState.pid
-      print("In PID state")
+  #    print("In PID state")
       if stopping_condition:
         long_control_state = LongCtrlState.stopping
-        print("stopping")
+   #     print("stopping")
 
     elif long_control_state == LongCtrlState.stopping:
       if starting_condition and CP.startingState:
@@ -154,7 +154,7 @@ class LongControl:
       freeze_integrator = prevent_overshoot
 
       error = self.v_pid - CS.vEgo
-      print("pid state")
+    #  print("pid state")
       # print("v_pid:", self.v_pid, "v_ego:", CS.vEgo, "error:", error)
       error_deadzone = apply_deadzone(error, deadzone)
       output_accel = self.pid.update(error_deadzone, speed=CS.vEgo,

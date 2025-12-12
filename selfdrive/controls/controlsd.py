@@ -118,11 +118,11 @@ class Controls:
 
     # VehicleModel 파라미터 (0이면 크래시)
     CP.mass = 1700.0
-    CP.wheelbase = 2.80
-    CP.centerToFront = 1.20
+    CP.wheelbase = 1.0
+    CP.centerToFront = 0.5
     CP.tireStiffnessFront = 120000.0
     CP.tireStiffnessRear  = 130000.0
-    CP.steerRatio = 15.0
+    CP.steerRatio = 12.5
  #   CP.maxSteeringAngleDeg = 450.0
     CP.stopAccel = -1.0
     CP.vEgoStopping = 0.15
