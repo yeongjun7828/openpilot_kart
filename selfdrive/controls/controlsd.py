@@ -136,7 +136,7 @@ class Controls:
     CP.longitudinalTuning.kpBP = [0.0, 5.0, 20.0]
     CP.longitudinalTuning.kpV = [0.5, 0.6, 0.5]
     CP.longitudinalTuning.kiBP = [0.0, 5.0, 20.0]
-    CP.longitudinalTuning.kiV = [0.1, 0.01, 0.01]
+    CP.longitudinalTuning.kiV = [0.07, 0.01, 0.01]
     CP.longitudinalTuning.deadzoneBP = [0.0, 20.0]
     CP.longitudinalTuning.deadzoneV = [0.0, 0.05]
 
