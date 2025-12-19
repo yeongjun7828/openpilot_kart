@@ -195,7 +195,7 @@ class Controls:
         CS.steerFaultTemporary = False
         CS.steerFaultPermanent = False
 
-        CS.cruiseState.enabled = True
+        CS.cruiseState.enabled = vs.cruiseState.enabled
         CS.cruiseState.standstill =vs.cruiseState.standstill
         CS.cruiseState.speed = vs.cruiseState.speed
         CS.cruiseState.available = vs.cruiseState.available
@@ -215,7 +215,7 @@ class Controls:
 
       def get_pid_accel_limits(self, CP, v_ego, v_cruise_ms):
         # 기본 가/감속 한계 (필요시 조정)
-        return (-1.0, 1.0)
+        return (-3.0, 1.0)
 
       def apply(self, CC, now_nanos):
         # 실제 CAN 송신 없이, 액추에이터 출력만 에코S
@@ -713,14 +713,17 @@ class Controls:
     long_plan = self.sm['longitudinalPlan']
 
     CC = car.CarControl.new_message()
-    CC.enabled = self.enabled
+    # Use cruiseState.enabled as an external autonomy toggle (from vehicleState)
+    autonomy_enabled = bool(CS.cruiseState.enabled)
+    CC.enabled = autonomy_enabled
     self.active = True
     self.enabled = True
     # Check which actuators can be enabled
     standstill = CS.vEgo <= max(self.CP.minSteerSpeed, MIN_LATERAL_CONTROL_SPEED) or CS.standstill
     CC.latActive = self.active and not CS.steerFaultTemporary and not CS.steerFaultPermanent and \
                    (not standstill or self.joystick_mode)
-    CC.longActive = self.enabled and not self.events.any(ET.OVERRIDE_LONGITUDINAL) and self.CP.openpilotLongitudinalControl
+    # Gate longitudinal control with autonomy_enabled to prevent PID windup when autonomy is off
+    CC.longActive = autonomy_enabled and not self.events.any(ET.OVERRIDE_LONGITUDINAL) and self.CP.openpilotLongitudinalControl
     # print(f"longActive: {CC.longActive}, latActive: {CC.latActive}")
     actuators = CC.actuators
     actuators.longControlState = self.LoC.long_control_state
@@ -745,7 +748,7 @@ class Controls:
       pid_accel_limits = self.CI.get_pid_accel_limits(self.CP, CS.vEgo, self.v_cruise_helper.v_cruise_kph * CV.KPH_TO_MS)
       t_since_plan = (self.sm.frame - self.sm.rcv_frame['longitudinalPlan']) * DT_CTRL
       actuators.accel = self.LoC.update(CC.longActive, CS, long_plan, pid_accel_limits, t_since_plan)
-
+      print(f"pid limit: {pid_accel_limits[0]:.2f} to {pid_accel_limits[1]:.2f}, accel: {actuators.accel:.2f}")
       # Steering PID loop and lateral MPC
       self.desired_curvature, self.desired_curvature_rate = get_lag_adjusted_curvature(self.CP, CS.vEgo,
                                                                                        lat_plan.psis,
